@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSPO Certification System 2024: Training Satisfaction Dashboard</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel for in-browser JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- PropTypes (Required by older/stable UMD Recharts) -->
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+
+    <!-- Recharts (Pinned to stable version 2.1.12 to avoid ForwardRef errors) -->
+    <script src="https://unpkg.com/recharts@2.1.12/umd/Recharts.js" crossorigin></script>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { 
+            BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
+            PieChart, Pie, Cell, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
+        } = window.Recharts;
+        const { useState } = React;
+
+        // --- SVG Icons ---
+        const UsersIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        );
+        const StarIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        );
+        const ShieldCheckIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+        );
+        const ClockIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        );
+        const TrendingUpIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        );
+        const LightbulbIcon = ({ className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>
+        );
+
+        // --- Aggregated Data from Certification System CSVs ---
+        
+        // Total respondents
+        const totalRespondents = 47;
+
+        // Demographics Data (Organisation Type)
+        const orgTypeData = [
+            { name: 'Smallholders', value: 24 },
+            { name: 'Medium/Large Growers', value: 6 },
+            { name: 'Mills', value: 13 },
+            { name: 'Others', value: 4 }
+        ];
+
+        // Experience Data
+        const experienceData = [
+            { name: '0-2 Years', value: 14 },
+            { name: '2-4 Years', value: 9 },
+            { name: '4-6 Years', value: 8 },
+            { name: '6-8 Years', value: 3 },
+            { name: '8+ Years', value: 13 }
+        ];
+
+        // Content & Comprehension Scores (Derived from Weighted Averages)
+        const comprehensionData = [
+            { subject: 'System Overview (P&C / ISH)', score: 7.7, fullMark: 10 },
+            { subject: 'Certification Cycle & Audits', score: 7.7, fullMark: 10 },
+            { subject: 'Time-Bound Plan & Sampling', score: 7.7, fullMark: 10 },
+            { subject: 'Non-Conformities (NCs) & Stakeholders', score: 7.8, fullMark: 10 },
+            { subject: 'Prisma License & Transition', score: 7.7, fullMark: 10 }
+        ];
+
+        // Facilitation & Logistics Scores
+        const logisticsData = [
+            { metric: 'Speaker Expertise', score: 8.7 },
+            { metric: 'Q&A Clarity', score: 8.5 },
+            { metric: 'Material Adequacy', score: 8.6 },
+            { metric: 'Venue & Food', score: 8.9 },
+            { metric: 'Time Allocation', score: 7.9 }
+        ];
+
+        // Qualitative Feedback - Deep Dive Topics & Logistics Requests
+        const qualitativeData = [
+            { category: 'Logistics Requests', label: 'More Time/Extend Duration', count: 7 },
+            { category: 'Logistics Requests', label: 'Increase Participant Quota', count: 5 },
+            { category: 'Deep Dive', label: 'Prisma System', count: 4 },
+            { category: 'Deep Dive', label: 'Internal Audit', count: 3 },
+            { category: 'Logistics Requests', label: 'Certificates Provided', count: 2 },
+            { category: 'Deep Dive', label: 'GHG & LUCA', count: 2 }
+        ].sort((a, b) => a.count - b.count);
+
+        // Colour Palette
+        const COLORS_ORG = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'];
+        const COLORS_EXP = ['#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7'];
+
+        const formatDecimal = (num) => new Intl.NumberFormat('en-GB', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(num);
+
+        function App() {
+            return (
+                <div className="min-h-screen text-slate-800 font-sans p-4 md:p-8">
+                    {/* Header */}
+                    <header className="mb-8 max-w-[90rem] mx-auto">
+                        <div className="flex items-center gap-3 mb-2">
+                            <ShieldCheckIcon className="w-8 h-8 text-blue-600" />
+                            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">
+                                RSPO Certification System (2024): Socialisation Dashboard
+                            </h1>
+                        </div>
+                        <p className="text-slate-500 max-w-4xl text-lg">
+                            An analytical summary of participant feedback following the RSPO Certification System (2024) training session. This dashboard highlights audience demographics, content comprehension, and key operational recommendations.
+                        </p>
+                    </header>
+
+                    <div className="max-w-[90rem] mx-auto space-y-6">
+                        
+                        {/* KPI Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                                <div className="p-3 bg-blue-100 rounded-lg">
+                                    <UsersIcon className="w-6 h-6 text-blue-700" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Total Attendees</h3>
+                                    <div className="text-3xl font-bold text-slate-800">{totalRespondents}</div>
+                                </div>
+                            </div>
+                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                                <div className="p-3 bg-emerald-100 rounded-lg">
+                                    <StarIcon className="w-6 h-6 text-emerald-700" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Speaker Expertise</h3>
+                                    <div className="text-3xl font-bold text-slate-800">8.7 <span className="text-lg text-slate-400 font-normal">/ 10</span></div>
+                                </div>
+                            </div>
+                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                                <div className="p-3 bg-amber-100 rounded-lg">
+                                    <TrendingUpIcon className="w-6 h-6 text-amber-700" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Overall Comprehension</h3>
+                                    <div className="text-3xl font-bold text-slate-800">7.7 <span className="text-lg text-slate-400 font-normal">/ 10</span></div>
+                                </div>
+                            </div>
+                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+                                <div className="p-3 bg-rose-100 rounded-lg">
+                                    <ClockIcon className="w-6 h-6 text-rose-700" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Top Constraint</h3>
+                                    <div className="text-xl font-bold text-slate-800 leading-tight">Time Allocation</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Top Section: Demographics */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            
+                            {/* Organisation Type Chart */}
+                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                                <h3 className="text-lg font-semibold text-slate-800 mb-2">Participant Demographics</h3>
+                                <p className="text-sm text-slate-500 mb-2">Breakdown by organisation type.</p>
+                                <div className="h-64 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <PieChart>
+                                            <Pie
+                                                data={orgTypeData}
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={60}
+                                                outerRadius={90}
+                                                paddingAngle={2}
+                                                dataKey="value"
+                                                label={({name, percent}) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                                                labelLine={false}
+                                                style={{ fontSize: '12px' }}
+                                            >
+                                                {orgTypeData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS_ORG[index % COLORS_ORG.length]} />
+                                                ))}
+                                            </Pie>
+                                            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                        </PieChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Experience Chart */}
+                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                                <h3 className="text-lg font-semibold text-slate-800 mb-2">RSPO Experience Level</h3>
+                                <p className="text-sm text-slate-500 mb-2">Years of experience with RSPO standards.</p>
+                                <div className="h-64 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={experienceData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
+                                            <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                                            <Tooltip 
+                                                cursor={{fill: '#f8fafc'}}
+                                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            />
+                                            <Bar dataKey="value" name="Respondents" radius={[4, 4, 0, 0]}>
+                                                {experienceData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={COLORS_EXP[index % COLORS_EXP.length]} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Middle Section: Comprehension & Qualitative Analysis */}
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            
+                            {/* Comprehension Radar Chart */}
+                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                                <h3 className="text-lg font-semibold text-slate-800 mb-2">System Comprehension</h3>
+                                <p className="text-sm text-slate-500 mb-2">Understanding of key certification processes (0-10 Scale).</p>
+                                <div className="h-72 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <RadarChart cx="50%" cy="50%" outerRadius="65%" data={comprehensionData}>
+                                            <PolarGrid stroke="#e2e8f0" />
+                                            <PolarAngleAxis dataKey="subject" tick={{ fill: '#475569', fontSize: 11 }} />
+                                            <PolarRadiusAxis angle={90} domain={[0, 10]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                            <Radar name="Avg Score" dataKey="score" stroke="#10b981" fill="#34d399" fillOpacity={0.6} />
+                                            <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                        </RadarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Qualitative Feedback Bar Chart */}
+                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+                                <h3 className="text-lg font-semibold text-slate-800 mb-2">Qualitative Feedback Themes</h3>
+                                <p className="text-sm text-slate-500 mb-2">Aggregated requests from open-ended responses.</p>
+                                <div className="h-72 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={qualitativeData} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
+                                            <XAxis type="number" axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                                            <YAxis dataKey="label" type="category" width={160} axisLine={false} tickLine={false} tick={{fill: '#475569', fontSize: 12}} />
+                                            <Tooltip 
+                                                formatter={(value) => [value, 'Mentions in Feedback']}
+                                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            />
+                                            <Bar dataKey="count" radius={[0, 4, 4, 0]} barSize={20}>
+                                                {qualitativeData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.category === 'Logistics Requests' ? '#f43f5e' : '#8b5cf6'} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                        </div>
+
+                        {/* Bottom Section: Facilitation & Recommendations */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            
+                            {/* Logistics Bar Chart */}
+                            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm lg:col-span-2">
+                                <h3 className="text-lg font-semibold text-slate-800 mb-2">Facilitation & Programme Logistics</h3>
+                                <p className="text-sm text-slate-500 mb-6">Participant ratings for delivery, venue, and time management (Scale: 0-10).</p>
+                                <div className="h-64 w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={logisticsData} layout="vertical" margin={{ top: 5, right: 30, left: 10, bottom: 5 }}>
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#e2e8f0" />
+                                            <XAxis type="number" domain={[0, 10]} axisLine={false} tickLine={false} />
+                                            <YAxis dataKey="metric" type="category" width={150} axisLine={false} tickLine={false} tick={{fill: '#475569', fontSize: 13}} />
+                                            <Tooltip 
+                                                formatter={(value) => [formatDecimal(value), 'Score']}
+                                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                            />
+                                            <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={28}>
+                                                {logisticsData.map((entry, index) => (
+                                                    <Cell key={`cell-${index}`} fill={entry.score < 8.0 ? '#f43f5e' : '#10b981'} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* Technical Recommendation Block */}
+                            <div className="bg-slate-800 p-6 rounded-xl border border-slate-700 flex flex-col justify-between shadow-sm">
+                                <div>
+                                    <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                                        <LightbulbIcon className="w-6 h-6 text-amber-400" />
+                                        Technical Recommendation
+                                    </h3>
+                                    
+                                    <div className="space-y-4">
+                                        <div className="bg-slate-700/50 p-4 rounded-lg border border-slate-600">
+                                            <h4 className="text-rose-300 font-semibold mb-1 text-sm">1. Time & Quota Constraints</h4>
+                                            <p className="text-sm text-slate-300 leading-relaxed">
+                                                The lowest score across all metrics is <strong>Time Allocation (7.9)</strong>, which is heavily corroborated by open-ended feedback asking for more time and larger participant quotas. The dense nature of Certification Systems requires extended workshops.
+                                            </p>
+                                        </div>
+                                        
+                                        <div className="bg-slate-700/50 p-4 rounded-lg border border-slate-600">
+                                            <h4 className="text-blue-300 font-semibold mb-1 text-sm">2. Core Audience: Smallholders</h4>
+                                            <p className="text-sm text-slate-300 leading-relaxed">
+                                                With <strong>over 50%</strong> of attendees representing Smallholders, future modules must ensure that highly technical topics (like Prisma and Internal Auditing) are tailored with practical, field-level examples relevant to small-scale operations.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
