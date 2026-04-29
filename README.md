@@ -1,0 +1,1 @@
+# rspo-certificationsystem-thailand-socialisation2026
